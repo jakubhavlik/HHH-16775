@@ -1,0 +1,40 @@
+version: '3.2'
+
+volumes:
+  db:
+    driver: local
+  db-sql:
+
+services:
+
+  sql-server-db:
+    container_name: sql-server-db
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    ports:
+      - "1433:1433"
+    environment:
+      MSSQL_SA_PASSWORD: "H!b3rn4t4"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Enterprise"
+      MSSQL_TCP_PORT: "1433"
+    volumes:
+      - ./mssql/init:/scripts/
+    command:
+      - /bin/bash
+      - -c
+      - |
+        ( /opt/mssql/bin/sqlservr --accept-eula & ) | grep -q "Service Broker manager has started"
+        # Launch MSSQL and send to background
+        #/opt/mssql/bin/sqlservr &
+        # Wait 30 seconds for it to be available
+        #sleep 20
+        # Run every script in /mssql/init
+        # TODO set a flag so that this is only done once on creation,
+        #      and not every time the container runs
+        for foo in /scripts/*.sql
+          do
+            echo "Running $$foo"  
+            /opt/mssql-tools/bin/sqlcmd -U SA -P $$MSSQL_SA_PASSWORD -l 30 -e -i $$foo
+        done
+        # So that the container doesn't shut down, sleep this thread
+        sleep infinity
